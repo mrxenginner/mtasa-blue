@@ -222,50 +222,9 @@ bool CResource::CallExportedFunction(const SString& name, CLuaArguments& args, C
     return false;
 }
 
-bool CResource::VerifyPendingClientChecksums()
-{
-    bool bQueuedDownload = false;
-
-    const auto queueDownloadForMismatch = [&bQueuedDownload](CDownloadableResource* pDownloadableResource)
-    {
-        if (!pDownloadableResource->IsAutoDownload() || pDownloadableResource->IsWaitingForDownload() || pDownloadableResource->HasVerifiedClientChecksum())
-            return;
-
-        const CChecksum clientChecksum = pDownloadableResource->GenerateClientChecksum();
-        if (clientChecksum == pDownloadableResource->GetServerChecksum())
-            return;
-
-        const SString strName = pDownloadableResource->GetName();
-        FileDelete(strName);
-        if (FileExists(strName))
-        {
-            SString strMessage("Unable to delete old file %s", *ConformResourcePath(strName));
-            g_pClientGame->TellServerSomethingImportant(1009, strMessage);
-        }
-
-        MakeSureDirExists(strName);
-        g_pClientGame->GetResourceFileDownloadManager()->AddPendingFileDownload(pDownloadableResource);
-        bQueuedDownload = true;
-    };
-
-    for (CResourceConfigItem* pConfigFile : m_ConfigFiles)
-        queueDownloadForMismatch(pConfigFile);
-
-    for (CResourceFile* pResourceFile : m_ResourceFiles)
-        queueDownloadForMismatch(pResourceFile);
-
-    return bQueuedDownload;
-}
-
 bool CResource::CanBeLoaded()
 {
-    if (IsActive() || IsWaitingForInitialDownloads())
-        return false;
-
-    if (VerifyPendingClientChecksums())
-        return false;
-
-    return !IsWaitingForInitialDownloads();
+    return !IsActive() && !IsWaitingForInitialDownloads();
 }
 
 bool CResource::IsWaitingForInitialDownloads()
@@ -342,24 +301,17 @@ void CResource::Load()
         {
             // Load the file
             std::vector<char> buffer;
-            const bool        bLoaded = FileLoad(pResourceFile->GetName(), buffer);
+            FileLoad(pResourceFile->GetName(), buffer);
             const char* pBufferData = buffer.empty() ? nullptr : &buffer.at(0);
 
             DECLARE_PROFILER_SECTION(OnPreLoadScript)
             // Check the contents
-            if (bLoaded)
+            if (CChecksum::GenerateChecksumFromBuffer(pBufferData, buffer.size()) == pResourceFile->GetServerChecksum())
             {
-                const CChecksum checksum = CChecksum::GenerateChecksumFromBuffer(pBufferData, buffer.size());
-                pResourceFile->SetLastClientChecksum(checksum);
-
-                if (checksum == pResourceFile->GetServerChecksum())
-                    m_pLuaVM->LoadScriptFromBuffer(pBufferData, buffer.size(), pResourceFile->GetName());
-                else
-                    HandleDownloadedFileTrouble(pResourceFile, true);
+                m_pLuaVM->LoadScriptFromBuffer(pBufferData, buffer.size(), pResourceFile->GetName());
             }
             else
             {
-                pResourceFile->SetLastClientChecksum(CChecksum());
                 HandleDownloadedFileTrouble(pResourceFile, true);
             }
             DECLARE_PROFILER_SECTION(OnPostLoadScript)
@@ -563,11 +515,7 @@ void CResource::HandleDownloadedFileTrouble(CResourceFile* pResourceFile, bool b
     SString errorMessage;
 
     CChecksum clientChecksum = pResourceFile->GetLastClientChecksum();
-    if (!pResourceFile->HasVerifiedClientChecksum())
-    {
-        errorMessage = "Client checksum was not verified before load";
-    }
-    else if (clientChecksum == CChecksum())
+    if (clientChecksum == CChecksum())
     {
         errorMessage = SString("File not readable: %s", pResourceFile->GetName());
     }
@@ -575,8 +523,7 @@ void CResource::HandleDownloadedFileTrouble(CResourceFile* pResourceFile, bool b
     {
         SString strGotMd5 = ConvertDataToHexString(clientChecksum.md5.data, sizeof(MD5));
         SString strWantedMd5 = ConvertDataToHexString(pResourceFile->GetServerChecksum().md5.data, sizeof(MD5));
-        errorMessage = SString("Got CRC:%08lX MD5:%s, wanted CRC:%08lX MD5:%s", clientChecksum.ulCRC, *strGotMd5,
-                               pResourceFile->GetServerChecksum().ulCRC, *strWantedMd5);
+        errorMessage = SString("Got MD5:%s, wanted MD5:%s", *strGotMd5, *strWantedMd5);
     }
 
     SString strFilename = ExtractFilename(PathConform(pResourceFile->GetShortName()));

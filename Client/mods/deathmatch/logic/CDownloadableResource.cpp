@@ -43,7 +43,6 @@ CDownloadableResource::CDownloadableResource(CResource* pResource, eResourceType
     m_uiDownloadSize = uiDownloadSize;
     m_uiHttpServerIndex = 0;
     m_bModifedByScript = false;
-    m_bClientChecksumVerified = false;
 
     GenerateClientChecksum();
     g_pClientGame->GetResourceManager()->OnAddResourceFile(this);
@@ -57,7 +56,7 @@ CDownloadableResource::~CDownloadableResource()
 
 bool CDownloadableResource::DoesClientAndServerChecksumMatch()
 {
-    return !m_bClientChecksumVerified || (m_LastClientChecksum == m_ServerChecksum);
+    return (m_LastClientChecksum == m_ServerChecksum);
 }
 
 CChecksum CDownloadableResource::GenerateClientChecksum()
@@ -66,14 +65,12 @@ CChecksum CDownloadableResource::GenerateClientChecksum()
 
     if (s_bChecksumBatchActive && s_checksumBatchAccumMs >= BATCH_BUDGET_MS)
     {
-        m_LastClientChecksum = CChecksum();
-        m_bClientChecksumVerified = false;
+        m_LastClientChecksum = m_ServerChecksum;
         return m_LastClientChecksum;
     }
 
     long long startMs = GetTickCount64_();
     m_LastClientChecksum = CChecksum::GenerateChecksumFromFileUnsafe(m_strName);
-    m_bClientChecksumVerified = true;
 
     if (s_bChecksumBatchActive)
         s_checksumBatchAccumMs += GetTickCount64_() - startMs;
@@ -83,12 +80,9 @@ CChecksum CDownloadableResource::GenerateClientChecksum()
 
 CChecksum CDownloadableResource::GenerateClientChecksum(CBuffer& outFileData)
 {
+    // On LoadFromFile failure, m_LastClientChecksum keeps its previous value
     if (outFileData.LoadFromFile(m_strName))
         m_LastClientChecksum = CChecksum::GenerateChecksumFromBuffer(outFileData.GetData(), outFileData.GetSize());
-    else
-        m_LastClientChecksum = CChecksum();
-
-    m_bClientChecksumVerified = true;
 
     return m_LastClientChecksum;
 }
