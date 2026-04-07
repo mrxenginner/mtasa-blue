@@ -5299,6 +5299,10 @@ bool CRenderWareSA::ModelInfoTXDAddTextures(SReplacementTextures* pReplacementTe
                     ClearPendingIsolatedModel(usModelId);
                     CTxdStore_RemoveRef(usStaleParentTxdId);
                     g_IsolatedTxdByModel.erase(itIsolated);
+                    // Queue for deferred cleanup when no other model claims the slot,
+                    // so TryCleanupOrphanedIsolatedSlots can release the MTA ownership pin.
+                    if (itOwner == g_IsolatedModelByTxd.end())
+                        g_OrphanedIsolatedTxdSlots.insert(usStaleIsolatedTxdId);
                     QueuePendingReplacement(usModelId, pReplacementTextures, uiParentModelId, usParentTxdId);
                     return false;
                 }
@@ -8418,6 +8422,26 @@ void CRenderWareSA::StaticResetModelTextureReplacing()
     g_GlobalMtaRasterCache.clear();
     InvalidateGlobalMtaRasterCache();
 
+    // Release parent TXD refs held for script TXDs before clearing the set.
+    // CleanupReplacementsInTxdSlot handles this during normal Lua cleanup, but
+    // script TXD entries that survive to session reset must be released here or
+    // the parent ref stays live across sessions.
+    if (!g_ScriptTxdSlotsWithParentPin.empty() && pGame)
+    {
+        auto* pTxdPoolSA = static_cast<CTxdPoolSA*>(&pGame->GetPools()->GetTxdPool());
+        if (pTxdPoolSA)
+        {
+            for (unsigned short usTxdSlotId : g_ScriptTxdSlotsWithParentPin)
+            {
+                auto* pSlot = pTxdPoolSA->GetTextureDictonarySlot(usTxdSlotId);
+                if (pSlot && pSlot->usParentIndex != static_cast<unsigned short>(-1))
+                {
+                    if (CTxdStore_GetTxd(pSlot->usParentIndex) != nullptr)
+                        CTxdStore_RemoveRef(pSlot->usParentIndex);
+                }
+            }
+        }
+    }
     g_ScriptTxdSlotsWithParentPin.clear();
 
     g_TxdToModelMap.clear();
