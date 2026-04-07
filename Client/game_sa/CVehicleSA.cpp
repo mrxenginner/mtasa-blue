@@ -152,12 +152,12 @@ static void _declspec(naked) HOOK_CPlane_ProcessFlyingCarStuff()
     // clang-format on
 }
 
-#define NUM_FirstStreamEngineSlot            7
-#define NUM_LastStreamEngineSlot             16
-#define NUM_AllSoundIndices                  0xFFFFFFFF
-#define NUM_ResidentEngineSlot               40
-#define NUM_LocalVehicleAudioContext         0x0
-#define VAR_VehicleAudioContext              0x50230C
+#define NUM_FirstStreamEngineSlot    7
+#define NUM_LastStreamEngineSlot     16
+#define NUM_AllSoundIndices          0xFFFFFFFF
+#define NUM_ResidentEngineSlot       40
+#define NUM_LocalVehicleAudioContext 0x0
+#define VAR_VehicleAudioContext      0x50230C
 
 namespace
 {
