@@ -150,4 +150,6 @@ private:
     std::list<SNoClientCacheScript>       m_NoClientCacheScriptList;
 
     CResourceModelStreamer m_modelStreamer{};
+
+    bool VerifyPendingClientChecksums();
 };
