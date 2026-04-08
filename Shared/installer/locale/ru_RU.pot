@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: 2d3d942aa8adf891478198912ac0b233\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-02-23 01:17\n"
-"PO-Revision-Date: 2026-03-05 08:44\n"
+"PO-Revision-Date: 2026-04-08 22:28\n"
 "Last-Translator: \n"
 "Language-Team: Russian\n"
 "Language: ru_RU\n"
@@ -25,7 +25,8 @@ msgstr "Multi Theft Auto не поддерживает Windows XP или Vista. 
 #. GET_WIN81_PLEASE
 #: Shared/installer/nightly.nsi:207
 msgid "The version of MTA:SA you've downloaded does not support Windows 7, 8 or 8.1.  Please download an alternative version from www.multitheftauto.com."
-msgstr "Загруженная вами версия MTA:SA не поддерживает Windows 7, 8 или 8.1.  Пожалуйста, скачайте альтернативную версию с сайта www.multitheftauto.com."
+msgstr "Загруженная вами версия MTA:SA не поддерживает Windows 7, 8 или 8.1. \n"
+"Пожалуйста, скачайте альтернативную версию с сайта www.multitheftauto.com."
 
 #. GET_MASTER_PLEASE
 #: Shared/installer/nightly.nsi:208
