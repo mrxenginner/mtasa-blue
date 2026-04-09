@@ -9,8 +9,18 @@ jobs:
       contents: write
 
     steps:
+      - name: Generate GitHub App token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          # Use client ID as issuer (GitHub now recommends client ID over App ID)
+          app-id: Iv23liwbKsXc0dviFyNl
+          private-key: ${{ secrets.GH_APP_MTA_PEM }}
+
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Run clang-format
         id: clang_format
@@ -47,7 +57,7 @@ jobs:
           cc @${GITHUB_ACTOR} please make sure to run clang-format locally before pushing changes to avoid this in the future."
 
           # And we're off to the races!
-          git push
+          git push "https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}.git" HEAD:${{ github.ref }}
 
       - name: Report formatting issues
         if: |
