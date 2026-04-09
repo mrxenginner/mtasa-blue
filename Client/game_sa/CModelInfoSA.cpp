@@ -608,7 +608,8 @@ void CModelInfoSA::Remove()
     // Remove our reference
     if (m_pInterface->usNumberOfRefs > 0)
     {
-        if (CTxdStore_GetTxd(m_pInterface->usTextureDictionary) != nullptr)
+        if (pGame && !pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(m_pInterface->usTextureDictionary) &&
+            CTxdStore_GetTxd(m_pInterface->usTextureDictionary) != nullptr)
             CTxdStore_RemoveRef(m_pInterface->usTextureDictionary);
         m_pInterface->usNumberOfRefs--;
     }
@@ -1107,6 +1108,10 @@ void CModelInfoSA::SetTextureDictionaryID(unsigned short usID)
     if (usOldTxdId == usID)
         return;
 
+    // CTxdStore functions (GetTxd, AddRef, RemoveRef) crash on free pool entries.
+    if (!pGame || pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(usID))
+        return;
+
     // Slot allocated (e.g. via engineRequestTXD) but TXD data isn't loaded yet.
     // For unloaded models without geometry, record the new TXD ID and transfer
     // entity refs so callers' pre-added refs are consumed. Loaded models fall
@@ -1116,9 +1121,6 @@ void CModelInfoSA::SetTextureDictionaryID(unsigned short usID)
     // texture data arrives later via engineImageLinkTXD + restream.
     if (CTxdStore_GetTxd(usID) == nullptr)
     {
-        if (!pGame || pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(usID))
-            return;
-
         if (!m_pInterface->pRwObject)
         {
             if (!MapContains(ms_DefaultTxdIDMap, static_cast<unsigned short>(m_dwModelID)))
@@ -1134,7 +1136,7 @@ void CModelInfoSA::SetTextureDictionaryID(unsigned short usID)
             for (size_t i = 0; i < referencesCount; i++)
                 CTxdStore_AddRef(usID);
 
-            if (CTxdStore_GetTxd(usOldTxdId) != nullptr)
+            if (!pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(usOldTxdId) && CTxdStore_GetTxd(usOldTxdId) != nullptr)
             {
                 for (size_t i = 0; i < referencesCount; i++)
                     CTxdStore_RemoveRef(usOldTxdId);
@@ -1199,9 +1201,9 @@ void CModelInfoSA::SetTextureDictionaryID(unsigned short usID)
         }
     }
 
-    // Release old TXD refs after rebinding completes
-    // Only release if old slot is still valid to avoid crash on stale/orphaned TXD slots
-    if (CTxdStore_GetTxd(usOldTxdId) != nullptr)
+    // Release old TXD refs after rebinding. Skip if the slot was freed between
+    // capturing usOldTxdId and here - CTxdStore functions crash on free entries.
+    if (!pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(usOldTxdId) && CTxdStore_GetTxd(usOldTxdId) != nullptr)
     {
         for (size_t i = 0; i < referencesCount; i++)
             CTxdStore_RemoveRef(usOldTxdId);
@@ -2205,7 +2207,8 @@ void CModelInfoSA::ResetVehicleDummies(bool bRemoveFromDummiesMap)
         {
             if (pVehicleModel && pVehicleModel->usNumberOfRefs > 0)
             {
-                if (CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
+                if (pGame && !pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(pVehicleModel->usTextureDictionary) &&
+                    CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
                     CTxdStore_RemoveRef(pVehicleModel->usTextureDictionary);
                 pVehicleModel->usNumberOfRefs--;
             }
@@ -2222,7 +2225,8 @@ void CModelInfoSA::ResetVehicleDummies(bool bRemoveFromDummiesMap)
 
     if (pVehicleModel->usNumberOfRefs > 0)
     {
-        if (CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
+        if (pGame && !pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(pVehicleModel->usTextureDictionary) &&
+            CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
             CTxdStore_RemoveRef(pVehicleModel->usTextureDictionary);
         pVehicleModel->usNumberOfRefs--;
     }
@@ -2253,7 +2257,8 @@ void CModelInfoSA::ResetAllVehicleDummies()
             {
                 if (pVehicleModel && pVehicleModel->usNumberOfRefs > 0)
                 {
-                    if (CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
+                    if (pGame && !pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(pVehicleModel->usTextureDictionary) &&
+                        CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
                         CTxdStore_RemoveRef(pVehicleModel->usTextureDictionary);
                     pVehicleModel->usNumberOfRefs--;
                 }
@@ -2267,7 +2272,8 @@ void CModelInfoSA::ResetAllVehicleDummies()
 
         if (pVehicleModel->usNumberOfRefs > 0)
         {
-            if (CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
+            if (pGame && !pGame->GetPools()->GetTxdPool().IsFreeTextureDictonarySlot(pVehicleModel->usTextureDictionary) &&
+                CTxdStore_GetTxd(pVehicleModel->usTextureDictionary) != nullptr)
                 CTxdStore_RemoveRef(pVehicleModel->usTextureDictionary);
             pVehicleModel->usNumberOfRefs--;
         }
